@@ -27,28 +27,12 @@
 -- this SquAPI file does have some mini-documentation on paramaters if you need like a quick reference, but
 -- do not modify, and do not copy-paste code from this file unless you are an avid scripter who knows what they are doing.
 
-
 -- Don't be afraid to ask me for help, just make sure to provide as much info as possible so I or someone can help you faster.
 
 
 
-
-
-
---setup stuff
-
--- Locates SquAssets, if it exists
--- Written by FOX
----@class SquAssets
-local squassets
-for _, path in ipairs(listFiles("/", true)) do
-  if string.find(path, "SquAssets") then squassets = require(path) end
-end
-assert(squassets, "§4Missing SquAssets file! Make sure to download that from the GitHub too!§c")
-
 ---@class SquAPI
 local squapi = {}
-
 
 -- SQUAPI CONTROL VARIABLES AND CONFIG ----------------------------------------------------------
 -------------------------------------------------------------------------------------------------
@@ -59,6 +43,7 @@ local squapi = {}
 --when true it will automatically tick and update all the functions, when false it won't do that.  
 --if false, you can run each objects respective tick/update functions on your own - better control.
 squapi.autoFunctionUpdates = true
+
 
 
 -- LOAD MODULES -----------------------------------------------------------------------------------------------------------
@@ -83,18 +68,36 @@ local module_names = {
   "animatetexture"
 }
 
-SQUAPI_NoAutoUpdate = not squapi.autoFunctionUpdates
+local found_module = false
 for _, name in ipairs(module_names) do
   --- Search for `./SquAPI_*.lua` first, then attempt `./SquAPI/SquAPI_*.lua`
-  local success, module = pcall(require, "./SquAPI_" .. name)
+  local success, module = xpcall(require, function(e)
+    if type(e) ~= "string" or not e:match("^Tried to require nonexistent script \".*\"!$") then
+      error("Error in SquAPI module '" .. name .. "': " .. tostring(e), 3)
+    end
+  end, "./SquAPI_" .. name)
   if not success then success, module = pcall(require, "./SquAPI/SquAPI_" .. name) end
 
   if success then
+    found_module = true
     for key, value in pairs(module) do
-      squapi[key] = value
+      if key == "$startEvents" then
+        if squapi.autoFunctionUpdates then value() end
+      else
+        squapi[key] = value
+      end
     end
   end
 end
-SQUAPI_NoAutoUpdate = nil
+
+if not found_module then
+  local path = "/" .. (...):gsub("%.", "/")
+  if path ~= "/" then path = path .. "/" end
+
+  error(
+    ("Could not find any SquAPI modules in paths\n  [%s] or [%s]\nDid you forgot to download the module files?")
+      :format(path, path .. "SquAPI/")
+  )
+end
 
 return squapi

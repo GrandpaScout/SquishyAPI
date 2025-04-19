@@ -10,7 +10,7 @@ squapi.tails = {}
 
 ---@class SquAPI.Tail
 ---@field tailSegmentList ModelPart[]
----@field berps [table, table][]
+---@field berps [SquAssets.BERP, SquAssets.BERP][]
 ---@field targets [number, number][]
 ---@field stiffness number
 ---@field bounce number
@@ -205,8 +205,11 @@ function squapi.tail:new(
   )
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, tail in ipairs(squapi.tails) do
       tail:tick()

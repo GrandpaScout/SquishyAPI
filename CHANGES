@@ -6,8 +6,6 @@ The purpose of this modification is to split the library into separate "modules"
 modules they wish to use. This has the effect of decreasing code size in situations where space is very limited and not
 every module is being used by the end user.
 
-The `SquAssets.lua` file is currently untouched.
-
 The main `SquAPI.lua` file now acts as a loader for all of the module files (the `SquAPI_*.lua` files) and if
 `require()` is used on it, will load all of the modules at once.  
 The loader file is *not* required as separate modules also allow `require()` to be used on them to directly to access

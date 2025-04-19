@@ -85,8 +85,11 @@ function squapi.FPHand:new(element, x, y, z, scale, onlyVisibleInFP)
   return squapi.newFPHand(element, x, y, z, scale, onlyVisibleInFP)
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.render:register(function(dt, ctx)
     for _, fphand in ipairs(squapi.FPHands) do
       fphand:render(dt, ctx)

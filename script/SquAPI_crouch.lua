@@ -44,8 +44,11 @@ function squapi.crouch(crouch, uncrouch, crawl, uncrawl)
   end
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.render:register(function()
     for _, crouch in ipairs(crouches) do
       crouch()

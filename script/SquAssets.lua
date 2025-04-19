@@ -260,82 +260,151 @@ end
 --------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------
 
+---@class SquAssets.VanillaElement
+---@field keepPosition boolean
+---@field element ModelPart
+---@field strength number
+---@field rot Vector3
+---@field pos Vector3
+---@field enabled boolean
+---@field frozen boolean
 squassets.vanillaElement = {}
-squassets.vanillaElement.__index = squassets.vanillaElement
-function squassets.vanillaElement:new(element, strength, keepPosition)
-  local self = setmetatable({}, squassets.vanillaElement)
+local VanillaElementMT = {__index = squassets.vanillaElement}
+
+function squassets.vanillaElement:disable()
+  self.enabled = false
+end
+
+function squassets.vanillaElement:enable()
+  self.enabled = true
+end
+
+function squassets.vanillaElement:toggle()
+  self.enabled = not self.enabled
+end
+
+function squassets.vanillaElement:freeze()
+  self.frozen = true
+end
+
+function squassets.vanillaElement:unfreeze()
+  self.frozen = false
+end
+
+--returns it to normal attributes
+function squassets.vanillaElement:zero()
+  self.element:setOffsetRot(0, 0, 0)
+  self.element:setPos(0, 0, 0)
+end
+
+--get the current rot/pos
+function squassets.vanillaElement:getPos()
+  return self.pos
+end
+
+function squassets.vanillaElement:getRot()
+  return self.rot
+end
+
+---@abstract
+function squassets.vanillaElement:getVanilla()
+  error("VanillaElement object does not implement a 'getVanilla' method!", 2)
+end
+
+function squassets.vanillaElement:render(dt)
+  if not self.frozen then
+    if self.enabled then
+      local rot, pos = self:getVanilla()
+      self.element:setOffsetRot(rot*self.strength)
+      if self.keepPosition then
+        self.element:setPos(pos)
+      end
+    else
+      self.element:setOffsetRot(math.lerp(
+        self.element:getOffsetRot(), 0, dt	
+      ))
+      self.rot = math.lerp(self.rot, 0, dt)
+      self.pos = math.lerp(self.pos, 0, dt)
+    end
+  end
+end
+
+
+function squassets.newVanillaElement(element, strength, keepPosition)
+  local self = setmetatable({}, VanillaElementMT)
 
   -- INIT -------------------------------------------------------------------------
-    self.keepPosition = keepPosition 
+
+  self.keepPosition = keepPosition
 	if keepPosition == nil then self.keepPosition = true end
 	self.element = element
 	self.element:setParentType("NONE")
-    self.strength = strength or 1
+  self.strength = strength or 1
 	self.rot = vec(0,0,0)
 	self.pos = vec(0,0,0)
 
-    -- CONTROL -------------------------------------------------------------------------
+  -- CONTROL -------------------------------------------------------------------------
 
 	self.enabled = true
-  function self:disable()
-    self.enabled = false
-  end
-  function self:enable()
-    self.enabled = true
-  end
-	function self:toggle()
-		self.enabled = not self.enabled
-	end
 
 	self.frozen = false
-	function self:freeze()
-		self.frozen = true
-	end
-	function self:unfreeze()
-		self.frozen = false
-	end
-
-  --returns it to normal attributes
-  function self:zero()
-    self.element:setOffsetRot(0, 0, 0)
-		self.element:setPos(0, 0, 0)
-  end
-	
-  --get the current rot/pos
-	function self:getPos()
-		return self.pos
-	end
-	function self:getRot()
-		return self.rot
-	end
 
   -- UPDATES -------------------------------------------------------------------------
 
-  function self:render(dt, _)
-    if not self.frozen then
-			if self.enabled then
-				local rot, pos = self:getVanilla()
-				self.element:setOffsetRot(rot*self.strength)
-				if self.keepPosition then
-					self.element:setPos(pos)
-				end
-			else
-				self.element:setOffsetRot(math.lerp(
-					self.element:getOffsetRot(), 0, dt	
-				))
-				self.rot = math.lerp(self.rot, 0, dt)
-				self.pos = math.lerp(self.pos, 0, dt)
-			end
-    end
-  end
 
   return self
 end
 
+---For compatibility
+function squassets.vanillaElement:new(element, strength, keepPosition)
+  return squassets.newVanillaElement(element, strength, keepPosition)
+end
+
+
+---@class SquAssets.BERP3D
+---@field stiff number
+---@field bounce number
+---@field pos Vector3
+---@field vel Vector3
+---@field acc Vector3
+---@field lower [number?, number?, number?]
+---@field upper [number?, number?, number?]
 squassets.BERP3D = {}
-squassets.BERP3D.__index = squassets.BERP3D
-function squassets.BERP3D:new(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
-  local self = setmetatable({}, squassets.BERP3D)
+local BERP3DMT = {__index = squassets.BERP3D}
+
+--target is the target position
+--dt, or delta time, the time between now and the last update(delta from the events.update() function)
+--if you want it to have a different stiff or bounce when run input a different stiff bounce
+function squassets.BERP3D:berp(target, dt, stiff, bounce)
+  target = target or vec(0, 0, 0)
+  dt = dt or 1
+
+  for i = 1, 3 do
+    --certified bouncy math
+    local dif = (target[i]) - self.pos[i]
+    self.acc[i] = ((dif * math.min(stiff or self.stiff, 1)) * dt) --based off of spring force F = -kx
+    self.vel[i] = self.vel[i] + self.acc[i]
+
+    --changes the position, but adds a bouncy bit that both overshoots and decays the movement
+    self.pos[i] = self.pos[i] + (dif * (1 - math.min(bounce or self.bounce, 1)) + self.vel[i]) * dt
+
+    --limits range
+
+    if self.upper[i] and self.pos[i] > self.upper[i] then
+      self.pos[i] = self.upper[i]
+      self.vel[i] = 0
+    elseif self.lower[i] and self.pos[i] < self.lower[i] then
+      self.pos[i] = self.lower[i]
+      self.vel[i] = 0
+    end
+  end
+
+  --returns position so that you can immediately apply the position as it is changed.
+  return self.pos
+end
+
+function squassets.newBERP3D(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
+  local self = setmetatable({}, BERP3DMT)
 
   self.stiff = stiff or 0.1
   self.bounce = bounce or 0.1
@@ -345,47 +414,60 @@ function squassets.BERP3D:new(stiff, bounce, lowerLimit, upperLimit, initialPos,
   self.lower = lowerLimit or { nil, nil, nil }
   self.upper = upperLimit or { nil, nil, nil }
 
-  --target is the target position
-  --dt, or delta time, the time between now and the last update(delta from the events.update() function)
-  --if you want it to have a different stiff or bounce when run input a different stiff bounce
-  function self:berp(target, dt, _stiff, _bounce)
-    target = target or vec(0, 0, 0)
-    dt = dt or 1
-
-    for i = 1, 3 do
-      --certified bouncy math
-      local dif = (target[i]) - self.pos[i]
-      self.acc[i] = ((dif * math.min(_stiff or self.stiff, 1)) * dt) --based off of spring force F = -kx
-      self.vel[i] = self.vel[i] + self.acc[i]
-
-      --changes the position, but adds a bouncy bit that both overshoots and decays the movement
-      self.pos[i] = self.pos[i] + (dif * (1 - math.min(_bounce or self.bounce, 1)) + self.vel[i]) * dt
-
-      --limits range
-
-      if self.upper[i] and self.pos[i] > self.upper[i] then
-        self.pos[i] = self.upper[i]
-        self.vel[i] = 0
-      elseif self.lower[i] and self.pos[i] < self.lower[i] then
-        self.pos[i] = self.lower
-        self.vel[i] = 0
-      end
-    end
-
-    --returns position so that you can immediately apply the position as it is changed.
-    return self.pos
-  end
-
   return self
 end
+
+---For compatibility
+function squassets.BERP3D:new(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
+  return squassets.newBERP3D(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
+end
+
 
 --stiffness factor, > 0
 --bounce factor, reccomended when in range of 0-1. bigger is bouncier.
 --if you want to limit the positioning, use lowerlimit and upperlimit, or leave nil
+
+---@class SquAssets.BERP
+---@field stiff number
+---@field bounce number
+---@field pos number
+---@field vel number
+---@field acc number
+---@field lower number?
+---@field upper number?
 squassets.BERP = {}
-squassets.BERP.__index = squassets.BERP
-function squassets.BERP:new(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
-  local self = setmetatable({}, squassets.BERP)
+local BERPMT = {__index = squassets.BERP}
+
+--target is the target position
+--dt, or delta time, the time between now and the last update(delta from the events.update() function)
+--if you want it to have a different stiff or bounce when run input a different stiff bounce
+function squassets.BERP:berp(target, dt, stiff, bounce)
+  dt = dt or 1
+
+  --certified bouncy math
+  local dif = (target or 10) - self.pos
+  self.acc = ((dif * math.min(stiff or self.stiff, 1)) * dt) --based off of spring force F = -kx
+  self.vel = self.vel + self.acc
+
+  --changes the position, but adds a bouncy bit that both overshoots and decays the movement
+  self.pos = self.pos + (dif * (1 - math.min(bounce or self.bounce, 1)) + self.vel) * dt
+
+  --limits range
+
+  if self.upper and self.pos > self.upper then
+    self.pos = self.upper
+    self.vel = 0
+  elseif self.lower and self.pos < self.lower then
+    self.pos = self.lower
+    self.vel = 0
+  end
+
+  --returns position so that you can immediately apply the position as it is changed.
+  return self.pos
+end
+
+function squassets.newBERP(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
+  local self = setmetatable({}, BERPMT)
 
   self.stiff = stiff or 0.1
   self.bounce = bounce or 0.1
@@ -395,43 +477,16 @@ function squassets.BERP:new(stiff, bounce, lowerLimit, upperLimit, initialPos, i
   self.lower = lowerLimit or nil
   self.upper = upperLimit or nil
 
-  --target is the target position
-  --dt, or delta time, the time between now and the last update(delta from the events.update() function)
-  --if you want it to have a different stiff or bounce when run input a different stiff bounce
-  function self:berp(target, dt, _stiff, _bounce)
-    dt = dt or 1
-
-    --certified bouncy math
-    local dif = (target or 10) - self.pos
-    self.acc = ((dif * math.min(_stiff or self.stiff, 1)) * dt) --based off of spring force F = -kx
-    self.vel = self.vel + self.acc
-
-    --changes the position, but adds a bouncy bit that both overshoots and decays the movement
-    self.pos = self.pos + (dif * (1 - math.min(_bounce or self.bounce, 1)) + self.vel) * dt
-
-    --limits range
-
-    if self.upper and self.pos > self.upper then
-      self.pos = self.upper
-      self.vel = 0
-    elseif self.lower and self.pos < self.lower then
-      self.pos = self.lower
-      self.vel = 0
-    end
-
-    --returns position so that you can immediately apply the position as it is changed.
-    return self.pos
-  end
-
   return self
 end
 
-local _mp_getName = models.getName
-local _str_lower = string.lower
-local _str_find = string.find
+---For compatibility
+function squassets.BERP:new(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
+  return squassets.newBERP(stiff, bounce, lowerLimit, upperLimit, initialPos, initialVel)
+end
 
-function squassets.caseInsensitiveFind(str, pattern)
-  return _str_find(_str_lower(_mp_getName(str)), pattern)
+function squassets.caseInsensitiveFind(part, pattern)
+  return part:getName():lower():find(pattern)
 end
 
 return squassets

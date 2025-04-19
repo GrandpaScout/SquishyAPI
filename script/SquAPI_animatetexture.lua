@@ -23,13 +23,17 @@ function squapi.animateTexture(element, numberOfFrames, framePercent, slowFactor
   end
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, textureanimator in ipairs(textureAnimators) do
       textureanimator()
     end
   end, "SquAPI_AnimateTexture")
 end
+
 
 return squapi

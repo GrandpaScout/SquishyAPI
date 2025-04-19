@@ -86,8 +86,11 @@ function squapi.bounceWalk:new(model, bounceMultiplier)
   return squapi.newBounceWalk(model, bounceMultiplier)
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.render:register(function(dt)
     for _, bouncewalk in ipairs(squapi.bounceWalks) do
       bouncewalk:render(dt)

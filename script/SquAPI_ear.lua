@@ -17,9 +17,9 @@ squapi.ears = {}
 ---@field bendStrength number
 ---@field doEarFlick boolean
 ---@field earFlickChance number
----@field eary table
----@field earx table
----@field earz table
+---@field eary SquAssets.BERP
+---@field earx SquAssets.BERP
+---@field earz SquAssets.BERP
 ---@field targets [number, number, number]
 ---@field oldpose Entity.pose
 squapi.ear = {}
@@ -191,8 +191,11 @@ function squapi.ear:new(
   )
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, ear in ipairs(squapi.ears) do
       ear:tick()

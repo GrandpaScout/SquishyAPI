@@ -184,8 +184,11 @@ function squapi.smoothHead:new(element, strength, tilt, speed, keepOriginalHeadP
   return squapi.newSmoothHead(element, strength, tilt, speed, keepOriginalHeadPos, fixPortrait)
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, smoothhead in ipairs(squapi.smoothHeads) do
       smoothhead:tick()

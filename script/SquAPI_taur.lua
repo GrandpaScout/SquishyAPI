@@ -12,7 +12,7 @@ squapi.taurs = {}
 ---@field taurBody ModelPart
 ---@field frontLegs ModelPart
 ---@field backLegs ModelPart
----@field taur table
+---@field taur SquAssets.BERP
 ---@field target number
 ---@field enabled boolean
 squapi.taur = {}
@@ -111,8 +111,11 @@ function squapi.taur:new(taurBody, frontLegs, backLegs)
   return squapi.newTaur(taurBody, frontLegs, backLegs)
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, taur in ipairs(squapi.taurs) do
       taur:tick()

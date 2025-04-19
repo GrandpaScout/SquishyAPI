@@ -133,8 +133,11 @@ function squapi.eye:new(element, leftDistance, rightDistance, upDistance, downDi
   return squapi.newEye(element, leftDistance, rightDistance, upDistance, downDistance, switchValues)
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, eye in ipairs(squapi.eyes) do
       eye:tick()

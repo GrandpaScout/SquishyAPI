@@ -12,7 +12,7 @@ squapi.bewbs = {}
 ---@field element ModelPart
 ---@field doIdle boolean
 ---@field bendability number
----@field bewby table
+---@field bewby SquAssets.BERP
 ---@field idleStrength number
 ---@field idleSpeed number
 ---@field target number
@@ -139,8 +139,11 @@ function squapi.bewb:new(
   )
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, bewb in ipairs(squapi.bewbs) do
       bewb:tick()

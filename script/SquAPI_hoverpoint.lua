@@ -189,8 +189,11 @@ function squapi.hoverPoint:new(element, elementOffset, springStrength, mass, res
   return squapi.newHoverPoint(element, elementOffset, springStrength, mass, resistance, rotationSpeed, rotateWithPlayer, doCollisions)
 end
 
----@diagnostic disable-next-line: undefined-global
-if not SQUAPI_NoAutoUpdate then
+local events_started = false
+squapi[("$startEvents")] = function()
+  if events_started then return end
+  events_started = true
+
   events.tick:register(function()
     for _, hoverpoint in ipairs(squapi.hoverPoints) do
       hoverpoint:tick()
